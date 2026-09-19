@@ -1,0 +1,14 @@
+NaguMIX source information
+
+Build status: development checkout
+Planned public source organization: https://github.com/nagumix
+NaguMIX application repository created there: no
+Private development host: intentionally omitted
+Release version: not applicable
+Release commit: not recorded
+Release-matched source URL: not established
+
+RELEASE GATE: A packaging/release process must replace this file with the
+released version, exact commit identifier, and a durable public source location that
+matches the distributed application. A moving default branch is not sufficient.
+This development marker must not be presented as completed release metadata.

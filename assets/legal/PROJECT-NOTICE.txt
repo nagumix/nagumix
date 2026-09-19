@@ -1,0 +1,44 @@
+NaguMIX
+Copyright © 2025–2026 Vangual
+
+NaguMIX was created by Vangual.
+
+APPLICATION CODE
+
+Unless a file or directory says otherwise, NaguMIX-authored application source,
+tests, scripts, configuration, build files, and reusable code examples are
+licensed under the GNU Affero General Public License version 3 or later:
+AGPL-3.0-or-later.
+
+NaguMIX is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for details.
+
+DOCUMENTATION
+
+Unless a document says otherwise, original NaguMIX documentation prose is
+licensed under CC-BY-SA-4.0. Code listings and reusable examples remain under
+AGPL-3.0-or-later. Third-party excerpts retain their stated terms.
+
+NAMES AND BRANDING ARTWORK
+
+The NaguMIX name, logos, icons, and other branding artwork are excluded from the
+AGPL and CC grants. No trademark registration is claimed. Permission is granted
+to redistribute unmodified branding assets only with unmodified copies of
+NaguMIX source or binaries published by the project. Modified builds and forks
+must replace the branding unless separately permitted. No permission is granted
+to imply endorsement or official status.
+
+OTHER BOUNDARIES
+
+Third-party components retain their own licenses and notices. These project
+licenses do not apply to users' photographs, other input material, or
+collages they export merely because NaguMIX processed them.
+
+SOURCE ACCESS
+
+The public application repository and release source location are not yet
+established. Every packaged release must provide its version, exact commit, and
+a durable matching-source URL in RELEASE-SOURCE.txt before publication. The
+Licensing page supplements source and notice delivery; it does not replace those
+obligations.

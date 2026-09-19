@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments and caches
+.venv/
+.venv-ci-windows/
+.ci-tools-windows/
+.cache/
+
+# Local runtime and test artifacts
+*.log
+*.json
+!tests/fixtures/*.json
+*.ini
+tests/tmp*/
+

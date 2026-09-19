@@ -1,0 +1,28 @@
+NaguMIX third-party notice index
+Verified against the locked/installed Windows Python 3.12 environment on
+2026-09-19. These copies preserve the installed distributions' complete notice
+files; NaguMIX's license does not replace them.
+
+Pillow 12.3.0
+  Full notice: third-party/Pillow-12.3.0-LICENSE.txt
+  Includes notices shipped for Pillow's bundled native libraries.
+
+wxPython 4.3.1
+  Full notice: third-party/wxPython-4.3.1-LICENSE.txt
+
+pillow-heif 1.7.0
+  Package notice: third-party/pillow-heif-1.7.0-LICENSE.txt
+  Bundled-library inventory: third-party/pillow-heif-1.7.0-BUNDLED-NOTICES.txt
+  The inventory covers libheif 1.23.3, libde265 1.1.2, x265 4.2, and the
+  Windows MinGW runtime notices/exceptions shipped with the inspected wheel.
+
+The x265 4.2 source grant permits GPL version 2 or later, providing a scoped
+GPLv3/AGPLv3 compatibility route. This does not clear every future binary or any
+codec patent question.
+
+Before publishing a package, inventory the actual platform artifact, retain all
+applicable notices, and provide required corresponding source, build,
+installation, and relinking material. Python, PyInstaller, hooks, platform
+runtimes, and installer tooling remain outside this source-environment inventory
+until a real package is audited.
+

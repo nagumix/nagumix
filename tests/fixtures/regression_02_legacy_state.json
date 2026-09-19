@@ -1,0 +1,11 @@
+[
+  {
+    "source_path": "tests/fixtures/regression_02_legacy_image.ppm",
+    "x": 4,
+    "y": 5,
+    "width": 3,
+    "height": 2,
+    "zoom_factor": 1.75,
+    "viewport_offset": [2, 1]
+  }
+]
