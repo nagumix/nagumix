@@ -32,7 +32,7 @@ class SettingsStub:
             ("Navigation", "preload_count"): self.preload_count,
             ("Navigation", "enable_wheel_navigation"): "true",
             ("Navigation", "sort_method"): "name_asc",
-            ("Canvas", "background_color"): "#FFFFFF",
+            ("Canvas", "background_color"): "#303030",
             ("UI", "overlay_timeout_ms"): "1500",
         }
         return values.get((section, key), fallback)
@@ -177,6 +177,7 @@ class PathBlockingLoader:
         self.active = 0
         self.max_active = 0
         self.releases = {}
+        self.on_call = None
 
     def block(self, path):
         self.releases[path] = threading.Event()
@@ -195,6 +196,8 @@ class PathBlockingLoader:
             self.max_active = max(self.max_active, self.active)
             self.condition.notify_all()
         try:
+            if self.on_call is not None:
+                self.on_call(path)
             release = self.releases.get(path)
             if release is not None and not release.wait(5.0):
                 raise TimeoutError(f"test did not release {path}")
@@ -709,16 +712,176 @@ class TestVisibleNavigationFeedback(unittest.TestCase):
         cls.app = wx.App.Get() or wx.App(False)
 
     def test_paused_decode_acknowledges_tiny_off_canvas_selection(self):
+        # perf_counter is monotonic and retains high resolution when Windows
+        # time.monotonic maps to a coarser system tick.
+        phase_clock = time.perf_counter
+        phase_clock_info = time.get_clock_info("perf_counter")
+        self.assertTrue(phase_clock_info.monotonic)
+
+        def is_feedback_present(shown, processing, draw_returned,
+                                paint_returned, pixel):
+            if not (shown and processing and draw_returned and paint_returned
+                    and pixel is not None):
+                return False
+            red, green, blue = pixel[:3]
+            return red >= 200 and green >= 100 and blue < 80
+
         settings = SettingsStub("0")
-        frame = MainFrame(None, "Regression 13 feedback", settings, debug_mode=True)
+        frame_ref = [None]
+        canvas_ref = [None]
+        readiness_loop = wx.GUIEventLoop()
+        startup = {}
+        startup_check_pending = [False]
+        started = [None]
+        feedback_loop_ref = [None]
+        active = [True]
+        phases = {}
+        visible_elapsed = []
+        status_drawn = [False]
+        surface_check_pending = [False]
+        worker_heartbeat = threading.Event()
+        worker_state = {}
+        feedback_presented = threading.Event()
+        scheduled = []
+        frame = None
+        original_navigator = None
+        loader = None
+        navigator = None
+        readiness_activator = None
+        feedback_activator = None
+        cleanup_state = {"done": False, "workers_stopped": True}
+
+        def mark(name):
+            phases.setdefault(name, phase_clock())
+
+        def sample_startup_surface(panel):
+            if not active[0] or panel is not canvas_ref[0]:
+                return
+            try:
+                startup["pixel"] = tuple(
+                    wx.ClientDC(panel).GetPixel(12, 12).Get()[:3])
+            except Exception as exc:
+                startup["error"] = repr(exc)
+            frame = frame_ref[0]
+            startup.update({
+                "completed": True,
+                "frame_shown": bool(frame.IsShownOnScreen()),
+                "canvas_shown": bool(panel.IsShownOnScreen()),
+                "iconized": bool(frame.IsIconized()),
+                "client_size": tuple(panel.GetClientSize()),
+                "scale": float(panel.GetContentScaleFactor()),
+                "time": phase_clock(),
+            })
+            readiness_loop.Exit()
+
+        def sample_feedback_surface(panel, draw_returned, paint_returned_at):
+            surface_check_pending[0] = False
+            if not active[0] or panel is not canvas_ref[0]:
+                return
+            mark("paint_handler_complete")
+            status = panel.selected_object
+            try:
+                pixel = tuple(wx.ClientDC(panel).GetPixel(12, 12).Get()[:3])
+            except Exception as exc:
+                phases.setdefault("surface_read_error", repr(exc))
+                return
+            processing = bool(
+                status is not None and status.status_type == "processing"
+                and status.status_operation == "navigation")
+            shown = bool(frame_ref[0].IsShownOnScreen()
+                         and panel.IsShownOnScreen())
+            if is_feedback_present(
+                    shown, processing, draw_returned, True, pixel):
+                now = phase_clock()
+                visible_elapsed.append(now - started[0])
+                phases.setdefault("visible_pixel", pixel)
+                phases.setdefault("visible_surface", now)
+                phases.setdefault("paint_return", paint_returned_at)
+                feedback_presented.set()
+                if worker_heartbeat.is_set() and feedback_loop_ref[0] is not None:
+                    feedback_loop_ref[0].Exit()
+
+        def decoder_heartbeat_on_gui():
+            if not active[0]:
+                return
+            with loader.condition:
+                worker_state["active"] = loader.active > 0
+                worker_state["release_gate_closed"] = (
+                    not loader.releases[target].is_set())
+            mark("decoder_heartbeat")
+            worker_heartbeat.set()
+            if feedback_presented.is_set() and feedback_loop_ref[0] is not None:
+                feedback_loop_ref[0].Exit()
+
+        def notify_decoder_call(path):
+            if path == target:
+                wx.CallAfter(decoder_heartbeat_on_gui)
+
+        def cleanup_test_resources():
+            nonlocal readiness_activator, feedback_activator
+            if cleanup_state["done"]:
+                return
+            cleanup_state["done"] = True
+            active[0] = False
+            for timer in scheduled:
+                timer.Stop()
+            if loader is not None:
+                loader.release_all()
+            navigators = [item for item in (navigator, original_navigator)
+                          if item is not None]
+            if navigator is not None and original_navigator is not None:
+                navigators = [navigator, original_navigator]
+            for owned_navigator in navigators:
+                owned_navigator.shutdown()
+            try:
+                for owned_navigator in navigators:
+                    stopped = owned_navigator.wait_for_workers(3.0)
+                    cleanup_state["workers_stopped"] &= stopped
+            finally:
+                if frame is not None:
+                    frame.Destroy()
+                readiness_activator = None
+                feedback_activator = None
+                wx.Yield()
+
+        original_paint = CanvasPanel.on_paint
+
+        def observed_paint(panel, event):
+            target_canvas = panel is canvas_ref[0]
+            if target_canvas:
+                status_drawn[0] = False
+                if started[0] is not None:
+                    mark("paint_entry")
+            result = original_paint(panel, event)
+            if not target_canvas or not active[0]:
+                return result
+            if started[0] is None:
+                if not startup_check_pending[0]:
+                    startup_check_pending[0] = True
+                    wx.CallAfter(sample_startup_surface, panel)
+            elif status_drawn[0] and not surface_check_pending[0]:
+                surface_check_pending[0] = True
+                paint_returned_at = phase_clock()
+                wx.CallAfter(
+                    sample_feedback_surface, panel, True, paint_returned_at)
+            return result
+
+        with mock.patch.object(CanvasPanel, "on_paint", observed_paint):
+            frame = MainFrame(None, "Regression 13 feedback", settings,
+                              debug_mode=True)
+        self.addCleanup(cleanup_test_resources)
+        frame_ref[0] = frame
         frame.SetClientSize((220, 120))
         canvas = frame.canvas_panel
-        original = canvas.file_navigator
-        original.shutdown()
-        self.assertTrue(original.wait_for_workers(2.0))
-        loader = PathBlockingLoader(lambda _path, **_kwargs: Image.new("RGB", (4, 4), "blue"))
+        canvas_ref[0] = canvas
+        original_navigator = canvas.file_navigator
+        original_navigator.shutdown()
+        self.assertTrue(original_navigator.wait_for_workers(2.0))
+        loader = PathBlockingLoader(
+            lambda _path, **_kwargs: Image.new("RGB", (4, 4), "blue"))
         target = "b.png"
         loader.block(target)
+        loader.on_call = notify_decoder_call
         navigator = FileNavigator(
             settings, image_loader=loader,
             result_dispatch=lambda callback, result: wx.CallAfter(callback, result))
@@ -726,53 +889,138 @@ class TestVisibleNavigationFeedback(unittest.TestCase):
         obj = ImageObject("a.png", canvas_width=220, canvas_height=120)
         obj._original_image = Image.new("RGB", (1, 1), "red")
         obj.x, obj.y, obj.width, obj.height = -500, -500, 1, 1
+        original_pixels = obj._original_image
+        original_geometry = (
+            obj.x, obj.y, obj.width, obj.height, obj.zoom_factor,
+            obj.viewport_offset)
         canvas.image_objects.append(obj)
         canvas.selected_object = obj
         snapshot = DirectorySnapshot(
             "", ("a.png", target),
             (path_comparison_key("a.png"), path_comparison_key(target)), True)
         navigator._file_cache[navigator._directory_key_for("a.png")] = snapshot
-        painted = threading.Event()
-        elapsed = []
+
+        startup_watchdog = None
+        feedback_watchdog = None
+        original_navigate = CanvasPanel._navigate_to_adjacent_file
+        original_set_status = ImageObject.set_status_overlay
+        original_refresh = CanvasPanel.Refresh
         original_draw = CanvasPanel._draw_canvas_navigation_status
-        request_started = None
+
+        def observed_navigate(panel, *args, **kwargs):
+            if panel is canvas:
+                mark("handler_entry")
+            return original_navigate(panel, *args, **kwargs)
+
+        def observed_set_status(image_object, message, status_type="info",
+                                operation=None):
+            result = original_set_status(
+                image_object, message, status_type, operation)
+            if (image_object is obj and status_type == "processing"
+                    and operation == "navigation"):
+                mark("status_updated")
+            return result
+
+        def observed_refresh(panel, *args, **kwargs):
+            selected = getattr(panel, "selected_object", None)
+            if (panel is canvas and started[0] is not None and selected is not None
+                    and selected.status_type == "processing"
+                    and selected.status_operation == "navigation"):
+                mark("paint_requested")
+            return original_refresh(panel, *args, **kwargs)
 
         def observed_draw(panel, dc):
             result = original_draw(panel, dc)
-            if result and panel.selected_object.status_type == "processing":
-                elapsed.append(time.monotonic() - request_started)
-                painted.set()
+            if (panel is canvas and result and panel.selected_object is not None
+                    and panel.selected_object.status_type == "processing"
+                    and panel.selected_object.status_operation == "navigation"):
+                status_drawn[0] = True
+                mark("status_draw_return")
             return result
 
-        loop = wx.GUIEventLoop()
-        activator = wx.EventLoopActivator(loop)
         try:
+            readiness_activator = wx.EventLoopActivator(readiness_loop)
+            shown_at = phase_clock()
             frame.Show()
-            with mock.patch.object(CanvasPanel, "_draw_canvas_navigation_status", observed_draw):
-                request_started = time.monotonic()
+            startup_watchdog = wx.CallLater(2000, readiness_loop.Exit)
+            scheduled.append(startup_watchdog)
+            readiness_loop.Run()
+            startup_watchdog.Stop()
+            del readiness_activator
+            readiness_activator = None
+            self.assertTrue(startup.get("completed"),
+                            "No completed initial canvas paint was observed")
+            self.assertTrue(startup.get("frame_shown"))
+            self.assertTrue(startup.get("canvas_shown"))
+            self.assertFalse(startup.get("iconized"))
+            self.assertGreater(startup.get("client_size", (0, 0))[0], 0)
+            self.assertGreater(startup.get("client_size", (0, 0))[1], 0)
+            background_pixel = startup.get("pixel")
+            self.assertIsNotNone(background_pixel, startup.get("error"))
+            self.assertEqual(background_pixel, (48, 48, 48))
+            # Controlled missing-presentation case: a helper return and a
+            # completed paint still fail when the real client surface is blank.
+            self.assertFalse(is_feedback_present(
+                startup["frame_shown"] and startup["canvas_shown"],
+                True, True, True, background_pixel))
+
+            loop = wx.GUIEventLoop()
+            feedback_loop_ref[0] = loop
+            feedback_activator = wx.EventLoopActivator(loop)
+            with mock.patch.object(
+                    CanvasPanel, "_navigate_to_adjacent_file", observed_navigate), \
+                 mock.patch.object(
+                    ImageObject, "set_status_overlay", observed_set_status), \
+                 mock.patch.object(CanvasPanel, "Refresh", observed_refresh), \
+                 mock.patch.object(
+                    CanvasPanel, "_draw_canvas_navigation_status", observed_draw):
+                started[0] = phase_clock()
                 wx.CallAfter(canvas._navigate_to_adjacent_file, False)
 
-                def finish_when_visible():
-                    if (painted.is_set()
-                            or time.monotonic() - request_started > 2.0):
-                        loop.Exit()
-                    else:
-                        wx.CallLater(10, finish_when_visible)
+                def feedback_timeout():
+                    phases.setdefault("watchdog", phase_clock())
+                    loop.Exit()
 
-                wx.CallLater(10, finish_when_visible)
+                feedback_watchdog = wx.CallLater(2000, feedback_timeout)
+                scheduled.append(feedback_watchdog)
                 loop.Run()
-            self.assertTrue(painted.is_set())
-            self.assertLess(elapsed[0], 0.1)
-            print(f"Regression 13 visible acknowledgement: {elapsed[0] * 1000:.1f} ms")
-            self.assertTrue(loader.wait_for_calls(1))
+            self.assertTrue(feedback_presented.is_set(),
+                            "Navigation feedback missed the visible client surface")
+            self.assertTrue(worker_heartbeat.is_set(),
+                            "The held decoder did not yield a GUI heartbeat")
+            self.assertTrue(worker_state.get("active"))
+            self.assertTrue(worker_state.get("release_gate_closed"))
+            self.assertEqual(obj.status_type, "processing")
+            self.assertEqual(obj.status_operation, "navigation")
+            self.assertLess(visible_elapsed[0], 0.1)
+            print(
+                "Regression 13 phases (ms): "
+                f"show-to-ready={(startup['time'] - shown_at) * 1000:.3f}, "
+                f"queue-to-handler={(phases['handler_entry'] - started[0]) * 1000:.3f}, "
+                f"handler-to-status={(phases['status_updated'] - phases['handler_entry']) * 1000:.3f}, "
+                f"status-to-refresh={(phases['paint_requested'] - phases['status_updated']) * 1000:.3f}, "
+                f"refresh-to-paint={(phases['paint_entry'] - phases['paint_requested']) * 1000:.3f}, "
+                f"paint-return-to-check={(phases['paint_handler_complete'] - phases['paint_return']) * 1000:.3f}, "
+                f"request-to-visible={visible_elapsed[0] * 1000:.3f}, "
+                f"clock-resolution-ns={phase_clock_info.resolution * 1_000_000_000:.0f}, "
+                f"scale={startup['scale']:.1f}, "
+                f"shown={startup['frame_shown'] and startup['canvas_shown']}, "
+                f"pixel={phases['visible_pixel']}"
+            )
             self.assertEqual(obj.source_path, "a.png")
+            self.assertIs(obj._original_image, original_pixels)
+            self.assertEqual(obj._original_image.getpixel((0, 0)), (255, 0, 0))
+            self.assertEqual(
+                (obj.x, obj.y, obj.width, obj.height, obj.zoom_factor,
+                 obj.viewport_offset), original_geometry)
         finally:
-            loader.release(target)
-            navigator.shutdown()
-            navigator.wait_for_workers(3.0)
-            frame.Destroy()
-            del activator
-            wx.Yield()
+            cleanup_test_resources()
+            if feedback_activator is not None:
+                del feedback_activator
+            if readiness_activator is not None:
+                del readiness_activator
+        self.assertTrue(cleanup_state["workers_stopped"],
+                        "The test-owned navigation worker did not stop")
 
 
 if __name__ == "__main__":

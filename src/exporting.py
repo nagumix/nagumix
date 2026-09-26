@@ -9,6 +9,7 @@ import threading
 from PIL import Image
 
 from .image_geometry import render_pil_crop
+from .settings_manager import CANVAS_BACKGROUND_DEFAULT
 
 
 EXPORT_FORMATS = {
@@ -173,7 +174,7 @@ def render_export_snapshot(snapshot, cancellation, progress_callback=None):
     """Render one immutable viewport snapshot with shared production geometry."""
     cancellation.check()
     composite = Image.new(
-        "RGBA", (snapshot.width, snapshot.height), snapshot.background or "#FFFFFF")
+        "RGBA", (snapshot.width, snapshot.height), snapshot.background or CANVAS_BACKGROUND_DEFAULT)
     rendered = visible = clipped = outside = 0
     failures = []
     total = len(snapshot.objects)

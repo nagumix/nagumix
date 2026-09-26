@@ -5,6 +5,7 @@ import copy
 import tempfile
 
 
+CANVAS_BACKGROUND_DEFAULT = "#303030"
 ARRANGEMENT_SECTION = "Arrangement"
 ARRANGEMENT_DEFAULTS = {"spacing": 10, "outer_margin": 10}
 ARRANGEMENT_MIN_PX = 0
@@ -55,7 +56,8 @@ class SettingsManager:
         # Ensure sections exist
         if not self.config.has_section("Canvas"):
             self.config.add_section("Canvas")
-            self.config.set("Canvas", "background_color", "#FFFFFF")
+        if not self.config.has_option("Canvas", "background_color"):
+            self.config.set("Canvas", "background_color", CANVAS_BACKGROUND_DEFAULT)
 
         # Navigation settings
         if not self.config.has_section("Navigation"):
@@ -212,7 +214,7 @@ class SettingsManager:
             preload = 2
         arrangement = self.get_arrangement_settings()
         return dict(
-            background=self.get_setting("Canvas", "background_color", "#FFFFFF"),
+            background=self.get_setting("Canvas", "background_color", CANVAS_BACKGROUND_DEFAULT),
             mode=self.get_appearance_mode(), timeout=self.get_overlay_timeout_ms(),
             position=self.get_object_info_position(),
             wheel=self.get_setting("Navigation", "enable_wheel_navigation", "true").lower() == "true",

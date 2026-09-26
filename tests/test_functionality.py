@@ -86,7 +86,20 @@ class TestSettingsManager(unittest.TestCase):
 
         # Should have default canvas background color
         bg_color = manager.get_setting("Canvas", "background_color", "#000000")
-        self.assertEqual(bg_color, "#FFFFFF")  # Default should be white
+        self.assertEqual(bg_color, "#303030")
+
+    def test_background_default_preserves_explicit_preferences(self):
+        for contents, expected in (
+                ("[Canvas]\n", "#303030"),
+                ("[Canvas]\nbackground_color = #FFFFFF\n", "#FFFFFF"),
+                ("[Canvas]\nbackground_color = #123456\n", "#123456")):
+            with self.subTest(expected=expected):
+                with open("nagumix_settings.ini", "w", encoding="utf-8") as stream:
+                    stream.write(contents)
+                manager = SettingsManager()
+                self.assertEqual(manager.get_dialog_draft()["background"], expected)
+                with open("nagumix_settings.ini", encoding="utf-8") as stream:
+                    self.assertEqual(stream.read(), contents)
 
     def test_settings_persistence(self):
         """Test that settings can be saved and loaded."""

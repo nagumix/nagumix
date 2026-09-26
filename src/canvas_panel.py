@@ -52,6 +52,7 @@ from .animation_controls import (
     timeline_thumb_x,
 )
 from .settings_manager import (
+    CANVAS_BACKGROUND_DEFAULT,
     OVERLAY_TIMEOUT_DEFAULT_MS,
     OVERLAY_TIMEOUT_MAX_MS,
     OVERLAY_TIMEOUT_MIN_MS,
@@ -531,7 +532,8 @@ class CanvasPanel(wx.Panel):
         self.Bind(wx.EVT_ERASE_BACKGROUND, lambda e: None)
 
         # Canvas background color (could come from settings)
-        self.canvas_bg = self.settings_manager.get_setting("Canvas", "background_color", fallback="#FFFFFF")
+        self.canvas_bg = self.settings_manager.get_setting("Canvas", "background_color", fallback=CANVAS_BACKGROUND_DEFAULT)
+        self.SetBackgroundColour(wx.Colour(self.canvas_bg))
 
         # Enable drag-and-drop
         self.SetDropTarget(FileDropTarget(self))
@@ -3909,7 +3911,7 @@ class CanvasPanel(wx.Panel):
                     obj.width, obj.height, obj.zoom_factor,
                     tuple(obj.viewport_offset), obj.lease_source_pixels()))
             return ExportSnapshot(
-                int(width), int(height), self.canvas_bg or "#FFFFFF",
+                int(width), int(height), self.canvas_bg or CANVAS_BACKGROUND_DEFAULT,
                 tuple(records))
         except Exception:
             for record in records:

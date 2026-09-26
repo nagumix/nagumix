@@ -65,9 +65,13 @@ class TestNativeBrandResources(unittest.TestCase):
     def setUpClass(cls):
         cls.app = wx.App.Get() or wx.App(False)
 
-    def tearDown(self):
+    def _clear_resource_caches(self):
         brand_resources.header_bitmap.cache_clear()
         brand_resources.app_icon_bundle.cache_clear()
+
+    def setUp(self):
+        self._clear_resource_caches()
+        self.addCleanup(self._clear_resource_caches)
 
     def test_cached_header_bitmap_and_missing_resource(self):
         brand_resources.header_bitmap.cache_clear()
@@ -78,9 +82,18 @@ class TestNativeBrandResources(unittest.TestCase):
             self.assertIs(first, brand_resources.header_bitmap("dark", 40))
             self.assertEqual(lookup.call_count, 1)
         brand_resources.header_bitmap.cache_clear()
+        brand_resources.app_icon_bundle.cache_clear()
         with mock.patch.object(brand_resources, "resource_path", return_value=None):
             self.assertIsNone(brand_resources.header_bitmap("light", 20))
             self.assertIsNone(brand_resources.app_icon_bundle())
+
+    def test_missing_resource_isolated_after_icon_cache_warmup(self):
+        self.assertIsNotNone(brand_resources.app_icon_bundle())
+        self._clear_resource_caches()
+        with mock.patch.object(brand_resources, "resource_path", return_value=None) as lookup:
+            self.assertIsNone(brand_resources.header_bitmap("dark", 20))
+            self.assertIsNone(brand_resources.app_icon_bundle())
+        self.assertEqual(lookup.call_count, 2)
 
     def test_icon_bundle_contains_native_small_and_large_sizes(self):
         bundle = brand_resources.app_icon_bundle()

@@ -32,7 +32,7 @@ class SettingsStub:
         if (section, key) == ("Navigation", "sort_method"):
             return "name_asc"
         if (section, key) == ("Canvas", "background_color"):
-            return "#FFFFFF"
+            return "#303030"
         return fallback
 
     def save(self):

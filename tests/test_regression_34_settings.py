@@ -244,6 +244,23 @@ class TestNativeDialog(OwnedSettings):
         dialog.select_page(2)
         self.assertEqual(dialog.arrangement_spacing_spin.GetValue(), 88)
 
+    def test_background_picker_sync_and_cancel_preserve_saved_color(self):
+        dialog = self.dialog()
+        dialog.bg_color_text.SetValue('#123456')
+        self.assertEqual(dialog.color_picker.GetColour(), wx.Colour('#123456'))
+        dialog.color_picker.SetColour(wx.Colour('#556677'))
+        if wx.Platform == '__WXMAC__':
+            from wx.lib.colourselect import ColourSelectEvent
+            event = ColourSelectEvent(dialog.color_picker.GetId(), wx.Colour('#556677'))
+        else:
+            event = wx.ColourPickerEvent(dialog.color_picker, dialog.color_picker.GetId(), wx.Colour('#556677'))
+            event.SetEventType(wx.wxEVT_COLOURPICKER_CHANGED)
+        dialog.color_picker.ProcessWindowEvent(event)
+        self.assertEqual(dialog.bg_color_text.GetValue(), '#556677')
+        with mock.patch.object(dialog, 'EndModal'):
+            dialog.on_cancel(None)
+        self.assertEqual(self.manager.get_dialog_draft()['background'], '#303030')
+
     def test_all_controls_bind_to_current_keys_and_ranges(self):
         dialog = self.dialog()
         for index in range(4):
@@ -353,11 +370,16 @@ class TestNativeDialog(OwnedSettings):
         self.assertEqual(dialog.book.GetSelection(), 1)
         dialog.select_page(0)
         dialog.color_picker.SetFocus()
-        event = wx.ColourPickerEvent(dialog.color_picker, dialog.color_picker.GetId(), wx.Colour('#556677'))
-        event.SetEventType(wx.wxEVT_COLOURPICKER_CHANGED)
+        dialog.color_picker.SetColour(wx.Colour('#556677'))
+        if wx.Platform == '__WXMAC__':
+            from wx.lib.colourselect import ColourSelectEvent
+            event = ColourSelectEvent(dialog.color_picker.GetId(), wx.Colour('#556677'))
+        else:
+            event = wx.ColourPickerEvent(dialog.color_picker, dialog.color_picker.GetId(), wx.Colour('#556677'))
+            event.SetEventType(wx.wxEVT_COLOURPICKER_CHANGED)
         dialog.color_picker.ProcessWindowEvent(event)
         self.assertEqual(dialog.bg_color_text.GetValue(), '#556677')
-        self.assertEqual(self.manager.get_dialog_draft()['background'], '#FFFFFF')
+        self.assertEqual(self.manager.get_dialog_draft()['background'], '#303030')
 
     def test_minimum_size_wraps_long_copy_and_keeps_actions_and_native_heights(self):
         dialog = self.dialog()

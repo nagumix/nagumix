@@ -66,18 +66,24 @@ class TestFileRevealAdapter(unittest.TestCase):
                          ["/usr/bin/xdg-open", "/tmp/a folder"])
 
     def test_missing_file_opens_existing_parent_but_missing_parent_does_not_launch(self):
-        popen = mock.Mock()
-        result = reveal_source("/tmp/folder/missing.png", system="Linux",
-                               popen=popen, exists=lambda _: False,
-                               isdir=lambda path: path == "/tmp/folder")
-        self.assertTrue(result.launched)
-        self.assertTrue(result.missing)
-        self.assertEqual(popen.call_args.args[0], ["xdg-open", "/tmp/folder"])
+        for lookup, executable in ((lambda _: "/usr/bin/xdg-open", "/usr/bin/xdg-open"),
+                                   (lambda _: None, "xdg-open")):
+            with self.subTest(lookup=executable):
+                popen = mock.Mock()
+                result = reveal_source(
+                    "/tmp/folder/missing.png", system="Linux", popen=popen,
+                    which=lookup, exists=lambda _: False,
+                    isdir=lambda path: path == "/tmp/folder")
+                self.assertTrue(result.launched)
+                self.assertTrue(result.missing)
+                self.assertIn("missing", result.message)
+                self.assertEqual(popen.call_args.args[0],
+                                 [executable, "/tmp/folder"])
 
         popen.reset_mock()
         result = reveal_source("/tmp/no-folder/missing.png", system="Linux",
-                               popen=popen, exists=lambda _: False,
-                               isdir=lambda _: False)
+                               popen=popen, which=lambda _: None,
+                               exists=lambda _: False, isdir=lambda _: False)
         self.assertFalse(result.launched)
         popen.assert_not_called()
 

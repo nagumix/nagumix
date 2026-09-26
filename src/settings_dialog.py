@@ -2,8 +2,9 @@
 import configparser
 
 import wx
+from wx.lib.colourselect import ColourSelect, EVT_COLOURSELECT
 
-from .settings_manager import APPEARANCE_MODES, OBJECT_INFO_POSITIONS, SORT_METHODS
+from .settings_manager import APPEARANCE_MODES, OBJECT_INFO_POSITIONS, SORT_METHODS, CANVAS_BACKGROUND_DEFAULT
 from .brand_resources import set_window_icon
 from .legal_resources import (
     LEGAL_DOCUMENTS, LICENSE_IDENTIFIER, PUBLIC_SOURCE_ORGANIZATION_URL,
@@ -201,14 +202,19 @@ class SettingsDialog(wx.Dialog):
         self.help(panel, color_copy, "The area behind your images.")
         color_row.Add(color_copy, 1, wx.ALIGN_CENTER_VERTICAL)
         color_edit = wx.BoxSizer(wx.HORIZONTAL)
-        picker = wx.ColourPickerCtrl(panel, colour="#FFFFFF", size=dip(self, (34, 36)))
+        # wxPython 4.3.1's macOS ColourPickerCtrl calls SetPickerCtrl,
+        # which is missing from its bindings. ColourSelect uses ColourDialog
+        # directly and retains the same GetColour/SetColour interface.
+        picker_class = ColourSelect if wx.Platform == "__WXMAC__" else wx.ColourPickerCtrl
+        picker = picker_class(panel, colour=CANVAS_BACKGROUND_DEFAULT, size=dip(self, (34, 36)))
         control = style(wx.TextCtrl(panel, value=self.draft["background"], size=dip(self, (103, -1))), "control")
         control.SetName("Background color")
         self.controls["background"] = control
         self.color_picker = picker
         self.sync_picker()
         control.Bind(wx.EVT_TEXT, self.sync_picker)
-        picker.Bind(wx.EVT_COLOURPICKER_CHANGED, lambda e: control.SetValue(e.GetColour().GetAsString(wx.C2S_HTML_SYNTAX)))
+        picker_event = EVT_COLOURSELECT if wx.Platform == "__WXMAC__" else wx.EVT_COLOURPICKER_CHANGED
+        picker.Bind(picker_event, lambda e: control.SetValue(picker.GetColour().GetAsString(wx.C2S_HTML_SYNTAX)))
         color_edit.Add(picker, 0, wx.RIGHT, dip(self, 8))
         color_edit.Add(control, 0, wx.ALIGN_CENTER_VERTICAL)
         color_row.Add(color_edit, 0, wx.ALIGN_CENTER_VERTICAL)

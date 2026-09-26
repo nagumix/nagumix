@@ -26,7 +26,7 @@ class SettingsStub:
             ("Navigation", "preload_count"): self.preload_count,
             ("Navigation", "enable_wheel_navigation"): "true",
             ("Navigation", "sort_method"): "name_asc",
-            ("Canvas", "background_color"): "#FFFFFF",
+            ("Canvas", "background_color"): "#303030",
             ("UI", "overlay_timeout_ms"): "1500",
         }.get((section, key), fallback)
 
