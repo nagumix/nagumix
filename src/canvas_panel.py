@@ -58,6 +58,8 @@ from .settings_manager import (
     OVERLAY_TIMEOUT_MIN_MS,
 )
 import logging
+from . import canvas_bindings
+from .empty_canvas import draw_empty_canvas
 
 
 SUCCESS_CARD_DISMISS_MS = 2500
@@ -1652,6 +1654,11 @@ class CanvasPanel(wx.Panel):
         dc.SetPen(wx.Pen(bg_color))
         w, h = self.GetSize()
         dc.DrawRectangle(0, 0, w, h)
+
+        if not self.image_objects:
+            draw_empty_canvas(dc, (w, h), bg_color, feedback=any(
+                getattr(self, name, None) is not None for name in
+                ("drop_operation", "scene_operation", "export_operation", "save_operation")))
 
         # Draw each image object
         for i, img_obj in enumerate(self.image_objects):
@@ -3350,11 +3357,16 @@ class CanvasPanel(wx.Panel):
         if CanvasPanel._handle_animation_control_key(self, event):
             return
 
+        if canvas_bindings.ADD_IMAGES.matches(event):
+            if (CanvasPanel._frame_shortcut_has_canvas_focus(self)
+                    and not getattr(event, "IsAutoRepeat", lambda: False)()):
+                self.GetTopLevelParent().on_add_images(None)
+            return
+
         # X is an application action, not an image action. Handle it before
         # the selection guard because a skipped child key event is not
         # guaranteed to reach the frame.
-        if (keycode in (ord('x'), ord('X'))
-                and not getattr(event, "ControlDown", lambda: False)()):
+        if canvas_bindings.QUIT[1].matches(event):
             parent = self.GetTopLevelParent()
             quit_handler = getattr(parent, "on_quit", None)
             if quit_handler is not None:

@@ -20,9 +20,13 @@ The x265 4.2 source grant permits GPL version 2 or later, providing a scoped
 GPLv3/AGPLv3 compatibility route. This does not clear every future binary or any
 codec patent question.
 
+Python, PyInstaller and PyInstaller hooks
+  The Windows build collects the build interpreter's LICENSE.txt,
+  PyInstaller's COPYING.txt (including its bootloader exception), and the hooks
+  contribution LICENSE into this directory. Exact versions are recorded by the
+  build metadata and locked dependency graph.
+
 Before publishing a package, inventory the actual platform artifact, retain all
 applicable notices, and provide required corresponding source, build,
-installation, and relinking material. Python, PyInstaller, hooks, platform
-runtimes, and installer tooling remain outside this source-environment inventory
-until a real package is audited.
-
+installation, and relinking material. Platform runtimes and installer tooling
+remain outside this source-environment inventory until a real package is audited.

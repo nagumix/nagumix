@@ -57,6 +57,7 @@ not a packaged-application or cross-platform release claim.
 - `docs/BRANDING_ASSETS.md`: branding scope and reproducible derivatives
 - `docs/LEGAL_AND_RELEASE.md`: licensing and release-source gates
 - `docs/WINDOWS_GUI_CI.md`: native Windows runner requirements
+- `docs/WINDOWS_PACKAGING.md`: locked local Windows x64 executable build
 
 ## Contributing and licensing
 

@@ -6,7 +6,26 @@ from .main_frame import MainFrame
 from .settings_manager import SettingsManager
 from .native_style import AppearanceController
 from .branding import APP_NAME
+from .runtime_paths import diagnostics_path, is_frozen
 import logging
+
+
+def configure_logging():
+    """Configure useful diagnostics without assuming console streams exist."""
+    kwargs = dict(level=logging.DEBUG,
+                  format="%(asctime)s - %(levelname)s - %(message)s",
+                  force=True)
+    if is_frozen():
+        path = diagnostics_path()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            logging.basicConfig(filename=path, encoding="utf-8", **kwargs)
+            return path
+        except OSError:
+            logging.basicConfig(handlers=[logging.NullHandler()], **kwargs)
+            return None
+    logging.basicConfig(**kwargs)
+    return None
 
 
 class NaguMIXApp(wx.App):
@@ -19,9 +38,7 @@ class NaguMIXApp(wx.App):
         Called upon app initialization. Creates the main frame and shows it.
         """
 
-        # Initialize logging logging to stdout
-        logging.basicConfig(level=logging.DEBUG,
-                            format='%(asctime)s - %(levelname)s - %(message)s')
+        configure_logging()
         logging.info("%s started", APP_NAME)
 
         # Initialize settings manager (loads .ini, sets defaults, etc.)

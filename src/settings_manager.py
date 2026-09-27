@@ -4,6 +4,8 @@ import configparser
 import copy
 import tempfile
 
+from .runtime_paths import settings_path
+
 
 CANVAS_BACKGROUND_DEFAULT = "#303030"
 ARRANGEMENT_SECTION = "Arrangement"
@@ -38,7 +40,7 @@ class SettingsManager:
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.loaded_path = None
-        self.default_file_name = "nagumix_settings.ini"
+        self.default_file_name = os.fspath(settings_path())
 
         # Attempt to load from local folder first, else from user config folder
         if os.path.exists(self.default_file_name):
@@ -264,6 +266,7 @@ class SettingsManager:
     def _write_config(self, config):
         path = self.loaded_path or self.default_file_name
         directory = os.path.dirname(os.path.abspath(path))
+        os.makedirs(directory, exist_ok=True)
         temporary = None
         try:
             with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=directory,

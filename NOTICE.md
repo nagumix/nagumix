@@ -39,7 +39,7 @@ their own licenses and notices; see `THIRD_PARTY_NOTICES.md`. These project
 licenses do not apply to users' photographs, other input material, or
 collages they export merely because NaguMIX processed them.
 
-The public application repository and release source location are not yet
-established. Every packaged release must replace the development marker in
-`assets/legal/RELEASE-SOURCE.txt` with the released version, exact commit, and
-a durable public matching-source URL before publication.
+The public application source repository is identified in
+`assets/legal/RELEASE-SOURCE.txt`. Every packaged release must replace that
+file's development marker with the released version, exact commit, and a durable
+public matching-source URL before publication.

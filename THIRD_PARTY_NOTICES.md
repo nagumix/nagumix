@@ -11,6 +11,12 @@ environment on 2026-09-19.
 | pillow-heif | 1.7.0 | `assets/legal/third-party/pillow-heif-1.7.0-LICENSE.txt` | `9E2635F155B00AF5A46CB2F2C9B052072EC546D59837EE74EFC9CBA2CBB83F3D` |
 | pillow-heif bundled libraries | 1.7.0 wheel inventory | `assets/legal/third-party/pillow-heif-1.7.0-BUNDLED-NOTICES.txt` | `5142993DE7EDE4427C3C74335958198D803AC92AC7A7D0E6705A0EEA77CC32B1` |
 
+The Windows packaging definition also collects the build interpreter's Python
+license, PyInstaller's `COPYING.txt` (including its bootloader exception), and
+the PyInstaller hooks contribution license into the frozen legal-resource tree.
+Their exact files and versions come from the locked build environment and must
+be inventoried for every candidate.
+
 The Pillow notice includes its bundled-library notices. The pillow-heif bundle
 notice identifies libheif 1.23.3, libde265 1.1.2, x265 4.2, and MinGW runtime
 components. The inspected x265 source grant permits GPL version 2 or later,
@@ -19,7 +25,6 @@ for every future binary or any codec patent question.
 
 Before publishing a package, inventory the actual platform artifact, retain all
 applicable notices, and provide any required corresponding source, build,
-installation, and relinking material. Python, PyInstaller, hooks, platform
-runtimes, and installer tooling remain outside this source-environment inventory
-until a real package is audited. See `docs/LEGAL_AND_RELEASE.md`.
-
+installation, and relinking material. Platform runtimes and installer tooling
+remain outside this source-environment inventory until a real package is
+audited. See `docs/LEGAL_AND_RELEASE.md`.

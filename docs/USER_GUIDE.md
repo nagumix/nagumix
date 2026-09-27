@@ -6,6 +6,21 @@ menu.
 
 ## Images and layout
 
+An empty canvas displays **Drop images here**, with hints for **Add Images...**
+and the exit keys. The outlined drop zone is decorative: the entire canvas
+accepts file drops and right clicks, including outside the border. The icon
+and keycaps are hints, not buttons. The guide disappears when an image loads
+successfully and returns after the last image is removed. Failed or canceled
+loads leave it available; loading and error cards appear above it. Off-canvas
+images still count as loaded. Guidance never appears in exports or saved state.
+
+Right-click **Add Images...** or press **Ctrl+O** (**Command+O** on macOS)
+with canvas focus to open the native multi-file chooser. Chosen images enter
+the same asynchronous loading flow as drops, starting at the canvas center.
+Canceling the chooser leaves the canvas and selection unchanged. The command
+also remains available when images are already present. These instructions
+describe the current source; older executable builds may have different controls.
+
 - Drop common still-image formats, AVIF, HEIC/HEIF, or GIF files onto the
   canvas. Loading progress and failures appear on the canvas.
 - Click an image to select it and drag to move it. White handles resize the
@@ -54,9 +69,9 @@ It can contain local paths and should not be committed.
 | Input | Action |
 | --- | --- |
 | `Esc` or `X` on the canvas | Exit |
+| `Ctrl+O` (`Command+O` on macOS) | Add Images... |
 | `+` / `-` | Zoom selected image |
 | `,` / `.` | Previous/next GIF frame |
 | `Space` | Toggle selected GIF or focused control |
 | `Ctrl` + vertical wheel | Zoom selected image |
 | Vertical wheel | Navigate files when enabled |
-

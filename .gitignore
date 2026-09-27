@@ -8,6 +8,7 @@ wheels/
 
 # Virtual environments and caches
 .venv/
+.venv-packaging/
 .venv-ci-windows/
 .ci-tools-windows/
 .cache/
@@ -18,4 +19,3 @@ wheels/
 !tests/fixtures/*.json
 *.ini
 tests/tmp*/
-

@@ -45,6 +45,14 @@ def _show_windows_vc_runtime_warning(message_box=None):
 
 
 def main():
+    if "--package-diagnostics" in sys.argv:
+        index = sys.argv.index("--package-diagnostics")
+        arguments = sys.argv[index + 1:]
+        if len(arguments) < 2:
+            return 2
+        from src.package_diagnostics import write_package_diagnostics
+        return write_package_diagnostics(arguments[0], arguments[1:])
+
     if not _windows_vc_runtime_available():
         _show_windows_vc_runtime_warning()
         return 1

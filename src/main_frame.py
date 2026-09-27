@@ -8,9 +8,12 @@ from .arrangement import arrange_no_resize, arrange_with_resize
 import logging
 from .exporting import resolve_export_path
 from .file_reveal import reveal_source
+from . import canvas_bindings
+from .file_navigator import FileNavigator
 
 
 class MainFrame(wx.Frame):
+    ADD_IMAGES_ID = wx.NewIdRef()
     RESET_FRAME_ID = wx.NewIdRef()
     RESET_SIZE_ID = wx.NewIdRef()
     RESET_ZOOM_ID = wx.NewIdRef()
@@ -34,6 +37,7 @@ class MainFrame(wx.Frame):
         self.settings_manager = settings_manager
         self.debug_mode = debug_mode
         self._shutdown_started = False
+        self._add_images_dialog_open = False
 
         # Create the main panel (the canvas)
         self.canvas_panel = CanvasPanel(self, settings_manager=self.settings_manager)
@@ -44,6 +48,7 @@ class MainFrame(wx.Frame):
         # Reset commands use stable IDs and are bound once. Each handler
         # resolves the current selection when the command is dispatched.
         self.Bind(wx.EVT_MENU, self.on_reset_size, id=int(self.RESET_SIZE_ID))
+        self.Bind(wx.EVT_MENU, self.on_add_images, id=int(self.ADD_IMAGES_ID))
         self.Bind(wx.EVT_MENU, self.on_reset_frame, id=int(self.RESET_FRAME_ID))
         self.Bind(wx.EVT_MENU, self.on_reset_zoom, id=int(self.RESET_ZOOM_ID))
         self.Bind(wx.EVT_MENU, self.on_reset_offset, id=int(self.RESET_OFFSET_ID))
@@ -72,6 +77,7 @@ class MainFrame(wx.Frame):
     def on_right_click(self, event):
         """Show a context menu for the entire canvas if user right-clicked outside any image object."""
         menu = wx.Menu()
+        menu.Append(int(self.ADD_IMAGES_ID), canvas_bindings.add_images_menu_label())
 
         # Resolve the object under this context click, not a stale selection.
         target_id = getattr(self.canvas_panel, "_context_object_id", None)
@@ -91,6 +97,7 @@ class MainFrame(wx.Frame):
         if target_id is None and not hasattr(self.canvas_panel, "_context_object_id"):
             sel_obj = self.canvas_panel.get_selected_object()
         if sel_obj:
+            menu.AppendSeparator()
             mark_item = menu.Append(wx.ID_ANY, "Mark This Object")
             self.Bind(wx.EVT_MENU, self.on_mark_object, mark_item)
 
@@ -150,6 +157,36 @@ class MainFrame(wx.Frame):
 
         self.PopupMenu(menu)
         menu.Destroy()
+
+    def on_add_images(self, event):
+        """Use the drop pipeline for a native multi-file chooser."""
+        if (self._add_images_dialog_open or self._shutdown_started
+                or not self.IsEnabled()
+                or any(isinstance(window, wx.Dialog) and window.IsModal()
+                       for window in wx.GetTopLevelWindows())):
+            return False
+        self._add_images_dialog_open = True
+        paths = []
+        try:
+            patterns = ";".join("*" + extension for extension in
+                                sorted(FileNavigator.SUPPORTED_EXTENSIONS))
+            dialog = wx.FileDialog(
+                self, canvas_bindings.ADD_IMAGES_LABEL,
+                wildcard=f"Supported images|{patterns}",
+                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_MULTIPLE)
+            try:
+                if dialog.ShowModal() == wx.ID_OK:
+                    paths = dialog.GetPaths()
+            finally:
+                dialog.Destroy()
+        finally:
+            self._add_images_dialog_open = False
+            if not self._shutdown_started:
+                self.canvas_panel.SetFocus()
+        if not paths or self._shutdown_started:
+            return False
+        width, height = self.canvas_panel.get_client_dimensions()
+        return self.canvas_panel.accept_drop(width // 2, height // 2, paths)
 
     @staticmethod
     def _reveal_label():
@@ -438,11 +475,10 @@ class MainFrame(wx.Frame):
         keycode = event.GetKeyCode()
         logging.debug(f"Key pressed: {keycode}")
         # ESC or F11 to exit fullscreen
-        if keycode in (wx.WXK_ESCAPE, wx.WXK_F11):
+        if canvas_bindings.QUIT[0].matches(event) or keycode == wx.WXK_F11:
             self.on_quit(None)
         # on key "x", run the on_quit function
-        elif (keycode in (ord('x'), ord('X'))
-              and not event.ControlDown()
+        elif (canvas_bindings.QUIT[1].matches(event)
               and not self._text_entry_has_focus()):
             self.on_quit(None)
         else:

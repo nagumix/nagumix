@@ -11,6 +11,11 @@ dependencies = [
     "wxpython==4.3.1",
 ]
 
+[dependency-groups]
+packaging = [
+    "pyinstaller==6.22.3",
+]
+
 [tool.uv.sources]
 wxpython = [
     { url = "https://github.com/wxWidgets/Phoenix/releases/download/wxPython-4.3.1/wxpython-4.3.1+ubuntu2404-cp312-cp312-linux_x86_64.whl", marker = "sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'" },

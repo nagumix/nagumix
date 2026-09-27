@@ -1,9 +1,7 @@
 NaguMIX source information
 
-Build status: development checkout
-Planned public source organization: https://github.com/nagumix
-NaguMIX application repository created there: no
-Private development host: intentionally omitted
+Build status: development checkout; not a release
+Public application source repository: https://github.com/nagumix/nagumix
 Release version: not applicable
 Release commit: not recorded
 Release-matched source URL: not established
